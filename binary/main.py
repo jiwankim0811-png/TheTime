@@ -1,93 +1,122 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
-app = FastAPI(title="Binary Search API", version="1.0")
+app = FastAPI(title="Binary Search Server", version="1.0")
 
-# CORS 설정
+# CORS(Cross-Origin Resource Sharing) 설정
+# GAS 및 모든 도메인에서의 클라이언트 요청을 허용하기 위해 설정합니다.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # 실제 운영 환경에서는 허용할 도메인만 지정하는 것이 안전합니다.
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 class SearchRequest(BaseModel):
-    array: List[int]
+    data: List[int]
     target: int
 
-@app.get("/")
-def read_root():
-    """서버가 정상 작동 중인지 확인하는 기본 루트 엔드포인트"""
-    return {"message": "Binary Search API Server is running!"}
+class SearchStep(BaseModel):
+    step: int
+    low: int
+    high: int
+    mid: int
+    mid_value: Optional[int]
+    status: str
+    message: str
 
-@app.get("/health")
-def health_check():
-    """상태 확인용 엔드포인트"""
-    return {"status": "healthy"}
+class SearchResponse(BaseModel):
+    success: bool
+    target: int
+    found_index: Optional[int]
+    total_steps: int
+    steps: List[SearchStep]
+    time_complexity: str
+    space_complexity: str
 
-@app.post("/binary-search")
+@app.post("/api/binary-search", response_model=SearchResponse)
 def binary_search_api(req: SearchRequest):
     """
-    이진 검색 알고리즘 수행 API
+    이진 검색 알고리즘을 수행하고 각 단계별 상태(State)와 복잡도 정보를 반환합니다.
+    데이터는 반드시 오름차순으로 정렬되어 있어야 합니다.
     """
-    arr = req.array
+    arr = req.data
     target = req.target
 
-    # 이진 검색을 수행하기 전에 배열이 정렬되어 있는지 확인
-    if arr != sorted(arr):
-        raise HTTPException(status_code=400, detail="입력된 배열이 오름차순으로 정렬되어 있어야 합니다.")
-
-    left = 0
-    right = len(arr) - 1
+    # 입력 데이터가 정렬되어 있지 않은 경우 정렬 수행
+    # (안정적인 이진 검색을 위해 오름차순 정렬 보장)
+    sorted_arr = sorted(arr)
+    
     steps = []
-    found_index = -1
-    comparisons = 0
+    low = 0
+    high = len(sorted_arr) - 1
+    step_count = 0
+    found_index = None
 
-    # 이진 검색 핵심 로직
-    while left <= right:
-        mid = (left + right) // 2
-        comparisons += 1
-        
-        step_info = {
-            "left": left,
-            "right": right,
-            "mid": mid,
-            "mid_value": arr[mid],
-            "message": f"범위 [{left}, {right}]의 중간 인덱스 {mid} (값: {arr[mid]})와 목표값 {target} 비교"
-        }
-        steps.append(step_info)
+    while low <= high:
+        step_count += 1
+        mid = (low + high) // 2
+        mid_value = sorted_arr[mid]
 
-        if arr[mid] == target:
+        if mid_value == target:
             found_index = mid
-            step_info["message"] += " -> 목표값 찾음!"
+            steps.append(SearchStep(
+                step=step_count,
+                low=low,
+                high=high,
+                mid=mid,
+                mid_value=mid_value,
+                status="FOUND",
+                message=f"단계 {step_count}: 인덱스 {mid}에서 타겟 값 {target}을(를) 찾았습니다!"
+            ))
             break
-        elif arr[mid] < target:
-            step_info["message"] += f" -> 목표값이 더 큼, 왼쪽 범위를 {mid + 1}(으)로 이동"
-            left = mid + 1
+        elif mid_value < target:
+            steps.append(SearchStep(
+                step=step_count,
+                low=low,
+                high=high,
+                mid=mid,
+                mid_value=mid_value,
+                status="GO_RIGHT",
+                message=f"단계 {step_count}: 중앙값({mid_value})이 타겟({target})보다 작으므로 오른쪽 구간으로 이동합니다."
+            ))
+            low = mid + 1
         else:
-            step_info["message"] += f" -> 목표값이 더 작음, 오른쪽 범위를 {mid - 1}(으)로 이동"
-            right = mid - 1
+            steps.append(SearchStep(
+                step=step_count,
+                low=low,
+                high=high,
+                mid=mid,
+                mid_value=mid_value,
+                status="GO_LEFT",
+                message=f"단계 {step_count}: 중앙값({mid_value})이 타겟({target})보다 크므로 왼쪽 구간으로 이동합니다."
+            ))
+            high = mid - 1
 
-    if found_index == -1:
-        steps.append({
-            "left": left,
-            "right": right,
-            "mid": -1,
-            "mid_value": None,
-            "message": "목표값이 배열에 존재하지 않습니다."
-        })
+    if found_index is None:
+        steps.append(SearchStep(
+            step=step_count + 1,
+            low=low,
+            high=high,
+            mid=-1,
+            mid_value=None,
+            status="NOT_FOUND",
+            message=f"검색 실패: 데이터 안에 타겟 값 {target}이(가) 존재하지 않습니다."
+        ))
 
-    return {
-        "target": target,
-        "array": arr,
-        "found_index": found_index,
-        "steps": steps,
-        "complexity": {
-            "time": "O(log N)",
-            "space": "O(1)",
-            "comparisons": comparisons
-        }
-    }
+    return SearchResponse(
+        success=True,
+        target=target,
+        found_index=found_index,
+        total_steps=len(steps),
+        steps=steps,
+        time_complexity="O(log N) - 매 단계마다 탐색 범위가 반으로 줄어듭니다.",
+        space_complexity="O(1) - 추가적인 메모리 공간을 거의 사용하지 않습니다."
+    )
+
+@app.get("/")
+def health_check():
+    return {"status": "healthy", "message": "Binary Search Cloud Run Server is running."}
