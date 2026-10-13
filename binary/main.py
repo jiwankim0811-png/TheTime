@@ -88,6 +88,7 @@ def binary_search_api(req: SearchRequest):
         }
     }
 
-@app.post("/binary-search")
-def binary_search_api(req: SearchRequest):
-    # ... 로직 ...}
+@app.get("/health")
+def health_check():
+    """클라우드 런 서버 상태 확인용 엔드포인트"""
+    return {"status": "healthy"}
