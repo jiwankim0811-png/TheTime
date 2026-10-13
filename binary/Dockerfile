@@ -12,4 +12,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Cloud Run에서 제공하는 PORT 환경변수(기본 8080)를 사용하여 Uvicorn 실행
-CMD ["uvicorn", "main.py:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
