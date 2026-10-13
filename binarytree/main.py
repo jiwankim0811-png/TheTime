@@ -1,125 +1,193 @@
-def insert(self, key):
-    """새로운 키를 트리에 삽입하고 단계별 기록을 반환"""
-    steps = []
-    steps.append(f"값 {key} 삽입 시작")
-    
-    new_node = Node(key)
-    if not self.root:
-        self.root = new_node
-        steps.append(f"루트 노드로 {key} 설정됨")
-        return steps
+# -*- coding: utf-8 -*-
+from flask import Flask, jsonify, request
+from flask_cors import CORS
 
-    curr = self.root
-    while True:
-        if key < curr.key:
-            steps.append(f"현재 노드({curr.key})보다 작으므로 왼쪽으로 이동")
-            if not curr.left:
-                curr.left = new_node
-                steps.append(f"왼쪽 자식으로 {key} 삽입 완료")
-                break
-            curr = curr.left
-        elif key > curr.key:
-            steps.append(f"현재 노드({curr.key})보다 크므로 오른쪽으로 이동")
-            if not curr.right:
-                curr.right = new_node
-                steps.append(f"오른쪽 자식으로 {key} 삽입 완료")
-                break
-            curr = curr.right
-        else:
-            steps.append(f"값 {key}이(가) 이미 존재합니다.")
-            break
-    return steps
+app = Flask(__name__)
+# CORS 설정: 모든 도메인에서의 요청을 허용 (필요시 특정 도메인으로 제한 가능)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
-def search(self, key):
-    """특정 키를 검색하고 경로를 단계별로 기록"""
-    steps = []
-    curr = self.root
-    while curr:
-        steps.append(f"현재 노드({curr.key}) 확인 중...")
-        if key == curr.key:
-            steps.append(f"키 {key} 발견 성공!")
-            return True, steps
-        elif key < curr.key:
-            steps.append(f"찾는 값({key})이 작으므로 왼쪽으로 이동")
-            curr = curr.left
-        else:
-            steps.append(f"찾는 값({key})이 크므로 오른쪽으로 이동")
-            curr = curr.right
-    steps.append(f"키 {key}를 트에서 찾지 못했습니다.")
-    return False, steps
+# ---------------------------------------------------------
+# 1. 이진 검색 트리(Binary Search Tree) 자료구조 정의
+# ---------------------------------------------------------
+class Node:
+    """이진 검색 트리의 각 노드를 정의하는 클래스"""
+    def __init__(self, key, value=None):
+        self.key = key          # 노드의 키 (정렬 기준)
+        self.value = value      # 노드에 저장될 부가 데이터
+        self.left = None        # 왼쪽 자식 노드 레퍼런스
+        self.right = None       # 오른쪽 자식 노드 레퍼런스
 
-def _min_value_node(self, node):
-    """주어진 서브트리의 최솟값 노드를 반환"""
-    curr = node
-    while curr.left is not None:
-        curr = curr.left
-    return curr
-
-def remove(self, key):
-    """노드를 삭제하고 삭제 과정을 단계별로 기록"""
-    steps = []
-    steps.append(f"값 {key} 삭제 시도")
-
-    def _remove_recursive(node, key):
-        if not node:
-            steps.append(f"삭제할 노드 {key}를 찾지 못함")
-            return None
-        
-        if key < node.key:
-            steps.append(f"왼쪽 서브트리에서 {key} 탐색")
-            node.left = _remove_recursive(node.left, key)
-        elif key > node.key:
-            steps.append(f"오른쪽 서브트리에서 {key} 탐색")
-            node.right = _remove_recursive(node.right, key)
-        else:
-            steps.append(f"삭제할 노드({node.key}) 발견")
-            # Case 1: 자식이 없거나 하나인 경우
-            if not node.left:
-                steps.append(f"노드 {node.key}: 왼쪽 자식 없음, 오른쪽 자식 대체")
-                return node.right
-            elif not node.right:
-                steps.append(f"노드 {node.key}: 오른쪽 자식 없음, 왼쪽 자식 대체")
-                return node.left
-            
-            # Case 2: 두 자식이 모두 있는 경우 (오른쪽 서브트리의 최솟값 가져오기)
-            steps.append(f"노드 {node.key}: 두 자식이 모두 존재, 오른쪽 서브트리 최소값 탐색")
-            temp = self._min_value_node(node.right)
-            node.key = temp.key
-            steps.append(f"대체된 값으로 노드 갱신: {temp.key}")
-            node.right = _remove_recursive(node.right, temp.key)
-        
-        return node
-
-    self.root = _remove_recursive(self.root, key)
-    steps.append(f"값 {key} 삭제 프로세스 완료")
-    return steps
-
-def dump(self):
-    """트리 전체 구조를 계층형 리스트(JSON 직렬화 가능 형태)로 반환"""
-    def _to_dict(node):
-        if not node:
-            return None
+    def to_dict(self):
+        """트리 시각화를 위해 노드 정보를 딕셔너리 형태로 변환 (재귀적)"""
         return {
-            "key": node.key,
-            "left": _to_dict(node.left),
-            "right": _to_dict(node.right)
+            "key": self.key,
+            "value": self.value,
+            "left": self.left.to_dict() if self.left else None,
+            "right": self.right.to_dict() if self.right else None
         }
-    return _to_dict(self.root)
 
-def min_key(self):
-    """트리 내 최소 키 반환"""
-    if not self.root:
-        return None
-    curr = self.root
-    while curr.left:
-        curr = curr.left
-    return curr.key
 
-def max_key(self):
-    """트리 내 최대 키 반환"""
-    if not self.root:
-        return None
-    curr = self.root
-    while curr.right:
-        curr = curr.right
-    return curr.keys
+class BinarySearchTree:
+    """이진 검색 트리 핵심 로직을 구현한 클래스"""
+    def __init__(self):
+        self.root = None
+
+    def add(self, key, value=None):
+        """새로운 키와 값을 트리에 삽입"""
+        def _add(node, key, value):
+            if node is None:
+                return Node(key, value)
+            if key < node.key:
+                node.left = _add(node.left, key, value)
+            elif key > node.key:
+                node.right = _add(node.right, key, value)
+            else:
+                # 이미 존재하는 키일 경우 값 갱신
+                node.value = value
+            return node
+
+        self.root = _add(self.root, key, value)
+
+    def search(self, key):
+        """특정 키를 검색하여 존재 여부 및 값 반환"""
+        current = self.root
+        while current is not None:
+            if key == current.key:
+                return {"found": True, "key": current.key, "value": current.value}
+            elif key < current.key:
+                current = current.left
+            else:
+                current = current.right
+        return {"found": False, "key": key, "value": None}
+
+    def remove(self, key):
+        """특정 키를 가진 노드를 삭제"""
+        def _min_value_node(node):
+            current = node
+            while current.left is not None:
+                current = current.left
+            return current
+
+        def _remove(node, key):
+            if node is None:
+                return None
+            
+            if key < node.key:
+                node.left = _remove(node.left, key)
+            elif key > node.key:
+                node.right = _remove(node.right, key)
+            else:
+                # 1. 자식이 없거나 하나인 경우
+                if node.left is None:
+                    return node.right
+                elif node.right is None:
+                    return node.left
+                
+                # 2. 두 자식이 모두 있는 경우: 오른쪽 서브트리의 최소값을 현재 노드에 복사
+                temp = _min_value_node(node.right)
+                node.key = temp.key
+                node.value = temp.value
+                node.right = _remove(node.right, temp.key)
+            return node
+
+        self.root = _remove(self.root, key)
+
+    def dump(self):
+        """전체 트리의 구조를 반환 (중위 순회 결과 및 계층형 구조)"""
+        elements = []
+        def _inorder(node):
+            if node:
+                _inorder(node.left)
+                elements.append({"key": node.key, "value": node.value})
+                _inorder(node.right)
+        
+        _inorder(self.root)
+        return {
+            "inorder": elements,
+            "tree_structure": self.root.to_dict() if self.root else None
+        }
+
+    def min_key(self):
+        """트리 내 최소 키 반환"""
+        if self.root is None:
+            return None
+        current = self.root
+        while current.left is not None:
+            current = current.left
+        return {"min_key": current.key, "value": current.value}
+
+    def max_key(self):
+        """트리 내 최대 키 반환"""
+        if self.root is None:
+            return None
+        current = self.root
+        while current.right is not None:
+            current = current.right
+        return {"max_key": current.key, "value": current.value}
+
+
+# 전역 BST 인스턴스 생성 (서버 메모리 상에 유지)
+bst = __import__('sys').modules[__name__] # 보조용 변수 할당 방지
+bst_instance = BinarySearchTree()
+
+
+# ---------------------------------------------------------
+# 2. API 엔드포인트 라우팅 설정
+# ---------------------------------------------------------
+@app.route("/", methods=["GET"])
+def health_check():
+    """서버 상태 확인 엔드포인트"""
+    return jsonify({"status": "online", "message": "Cloud Run BST Server is running successfully."}), 200
+
+
+@app.route("/bst/<action>", methods=["POST"])
+def handle_bst_action(action):
+    """
+    이진 검색 트리 연산 처리 엔드포인트
+    action 종류: add, search, remove, dump, min_key, max_key
+    """
+    try:
+        data = request.get_json() or {}
+        key = data.get("key")
+        value = data.get("value")
+
+        result = {}
+        if action == "add":
+            if key is None:
+                return jsonify({"error": "Key is required for insertion."}), 400
+            bst_instance.add(int(key), value)
+            result = {"message": f"Key {key} added successfully.", "tree": bst_instance.dump()}
+            
+        elif action == "search":
+            if key is None:
+                return jsonify({"error": "Key is required for search."}), 400
+            result = bst_instance.search(int(key))
+            
+        elif action == "remove":
+            if key is None:
+                return jsonify({"error": "Key is required for removal."}), 400
+            bst_instance.remove(int(key))
+            result = {"message": f"Key {key} removed successfully.", "tree": bst_instance.dump()}
+            
+        elif action == "dump":
+            result = bst_instance.dump()
+            
+        elif action == "min_key":
+            result = bst_instance.min_key()
+            
+        elif action == "max_key":
+            result = bst_instance.max_key()
+            
+        else:
+            return jsonify({"error": f"Invalid action: {action}"}), 400
+
+        return jsonify({"success": True, "action": action, "result": result}), 200
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+if __name__ == "__main__":
+    import os
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
