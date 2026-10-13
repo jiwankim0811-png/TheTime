@@ -5,27 +5,33 @@ from typing import List
 
 app = FastAPI(title="Binary Search API", version="1.0")
 
-# CORS(Cross-Origin Resource Sharing) 설정
-# 구글 앱스 스크립트나 브라우저에서 클라우드 런 서버로 안전하게 요청을 보낼 수 있도록 허용합니다.
+# CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 실제 운영 환경에서는 허용할 도메인만 지정하는 것이 안전합니다.
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 요청 데이터 구조 정의 (Pydantic 모델)
 class SearchRequest(BaseModel):
     array: List[int]
     target: int
+
+@app.get("/")
+def read_root():
+    """서버가 정상 작동 중인지 확인하는 기본 루트 엔드포인트"""
+    return {"message": "Binary Search API Server is running!"}
+
+@app.get("/health")
+def health_check():
+    """상태 확인용 엔드포인트"""
+    return {"status": "healthy"}
 
 @app.post("/binary-search")
 def binary_search_api(req: SearchRequest):
     """
     이진 검색 알고리즘 수행 API
-    - 입력: 정렬된 정수 리스트(array)와 찾고자 하는 값(target)
-    - 출력: 검색 과정의 단계별 기록(steps), 최종 결과 인덱스, 시간/공간 복잡도 정보
     """
     arr = req.array
     target = req.target
@@ -45,7 +51,6 @@ def binary_search_api(req: SearchRequest):
         mid = (left + right) // 2
         comparisons += 1
         
-        # 현재 탐색 구간의 상태를 단계별 기록에 저장
         step_info = {
             "left": left,
             "right": right,
@@ -75,7 +80,6 @@ def binary_search_api(req: SearchRequest):
             "message": "목표값이 배열에 존재하지 않습니다."
         })
 
-    # 복잡도 정보 포함 반환
     return {
         "target": target,
         "array": arr,
@@ -87,8 +91,3 @@ def binary_search_api(req: SearchRequest):
             "comparisons": comparisons
         }
     }
-
-@app.get("/health")
-def health_check():
-    """클라우드 런 서버 상태 확인용 엔드포인트"""
-    return {"status": "healthy"}
